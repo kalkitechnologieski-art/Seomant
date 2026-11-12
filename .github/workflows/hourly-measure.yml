@@ -1,0 +1,34 @@
+name: Hourly measure
+
+on:
+  schedule:
+    # Minute 30 UTC is the top of the hour in Asia/Calcutta.
+    - cron: '30 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Call the Vercel measure route
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "${CRON_SECRET}" ]; then
+            echo "CRON_SECRET is missing. Add it as a GitHub Actions repository secret, and set the same value on the Vercel project. Nothing was measured."
+            exit 1
+          fi
+          status="$(curl --silent --show-error --max-time 300 \
+            --output /tmp/seoman-measure.json \
+            --write-out '%{http_code}' \
+            --header "Authorization: Bearer ${CRON_SECRET}" \
+            'https://seo-man.vercel.app/api/cron/measure')"
+          echo "Measure route returned HTTP ${status}"
+          cat /tmp/seoman-measure.json
+          echo
+          if [ "${status}" != "200" ]; then
+            exit 1
+          fi
